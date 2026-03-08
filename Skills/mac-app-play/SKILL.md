@@ -58,6 +58,8 @@ scripts/mac_app_play screenshot --high-resolution --output /tmp/retina.png
 | `--output <path>` | Output PNG path (default: `screenshot.png`) |
 | `--high-resolution` | Capture at full pixel resolution (Retina/2x). Default is 1x point resolution |
 
+**Window capture behavior**: When using `--app` or `--window-id`, the captured image contains **only the window content** — not the full screen. The image coordinates start at (0,0) at the window's top-left corner. The command prints the window's screen position (e.g., `at (100,200 800x600)`) so you can map window-local coordinates back to screen points for mouse commands by adding the window origin offset.
+
 ### display-info — Show display size and scale factor
 
 ```bash

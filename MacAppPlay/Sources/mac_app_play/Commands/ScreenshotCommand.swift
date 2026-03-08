@@ -33,7 +33,8 @@ struct ScreenshotCommand: AsyncParsableCommand {
                 print("No windows found for app: \(app)")
                 throw ExitCode.failure
             }
-            print("Capturing window: \(first.name) (ID: \(first.windowID))")
+            let bounds = first.bounds
+            print("Capturing window: \(first.name) (ID: \(first.windowID)) at (\(Int(bounds.origin.x)),\(Int(bounds.origin.y)) \(Int(bounds.width))x\(Int(bounds.height)))")
             image = try await ScreenCapture.captureWindow(id: first.windowID, highResolution: highResolution)
         } else if let display {
             image = try await ScreenCapture.captureDisplay(id: display, highResolution: highResolution)
