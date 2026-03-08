@@ -104,9 +104,31 @@ scripts/mac_app_play key type "slow" --delay 100
 
 See [references/KEYS.md](references/KEYS.md) for the full list of key names and modifier names.
 
-### ax — Inspect accessibility elements
+### focus — Switch application focus and raise windows
 
-Use this to discover UI elements, find buttons/fields by label, and read element attributes.
+```bash
+# Activate an application (bring to foreground)
+scripts/mac_app_play focus app --app Safari
+
+# List windows with titles and indices
+scripts/mac_app_play focus list --app Safari
+
+# Raise a specific window by index
+scripts/mac_app_play focus window --app Safari
+scripts/mac_app_play focus window --app Safari --index 1
+```
+
+| Subcommand | Required | Optional |
+|---|---|---|
+| `app` | `--app <name>` | |
+| `list` | `--app <name>` | |
+| `window` | `--app <name>` | `--index <n>` (default 0) |
+
+`focus app` activates the application, bringing it to the foreground. `focus list` shows all windows with their titles, positions, and indices for use with `focus window`. `focus window` raises a specific window (filtered to AXWindow elements) and also activates the app.
+
+### ax — Inspect and interact with accessibility elements
+
+Use this to discover UI elements, find buttons/fields by label, read element attributes, and interact with elements directly.
 
 ```bash
 # List top-level elements (windows + direct children)
@@ -123,6 +145,16 @@ scripts/mac_app_play ax find --app Safari --label "Close"
 
 # Show all attributes of element at path
 scripts/mac_app_play ax attrs --app Safari --path 0,0,1
+
+# List available actions for an element
+scripts/mac_app_play ax actions --app Safari --path 0,0,1
+
+# Press a button or perform an action on an element
+scripts/mac_app_play ax press --app Safari --path 0,0,1
+scripts/mac_app_play ax press --app Safari --path 0,0,1 --action AXShowMenu
+
+# Set value of a text field
+scripts/mac_app_play ax set-value --app Safari --path 0,0,3 --value "hello"
 ```
 
 | Subcommand | Required | Optional |
@@ -132,6 +164,9 @@ scripts/mac_app_play ax attrs --app Safari --path 0,0,1
 | `children` | `--app <name>`, `--path <indices>` | |
 | `find` | `--app <name>`, `--label <text>` | |
 | `attrs` | `--app <name>`, `--path <indices>` | |
+| `actions` | `--app <name>`, `--path <indices>` | |
+| `press` | `--app <name>`, `--path <indices>` | `--action <name>` (default AXPress) |
+| `set-value` | `--app <name>`, `--path <indices>`, `--value <text>` | |
 
 **Path navigation**: `--path` takes comma-separated indices. `0` = first window, `0,2` = first window's third child, `0,2,0` = that child's first child.
 
@@ -154,15 +189,30 @@ AXSize: 20x20
 
 ## Workflow
 
+**Always prefer accessibility (AX) commands over mouse/keyboard.** AX interactions are more reliable — they don't depend on element visibility, screen position, or window overlap. Fall back to screenshot + mouse/keyboard only when AX cannot accomplish the task (e.g., the app doesn't expose AX elements, or you need pixel-level interaction like drawing).
+
+### Primary: AX-based interaction
+
 1. **Check permissions**: `scripts/mac_app_play permission check --all` — request if denied.
-2. **Discover UI**: `ax list --app <name>` for overview, `ax tree --app <name> --depth 3` for structure.
-3. **Find target**: `ax find --app <name> --label "Submit"` to locate an element, note its position.
-4. **Interact**: `mouse click --x <x> --y <y>` to click, `key type "text"` to enter text, `key press return` to confirm.
-5. **Verify**: `screenshot --app <name> --output /tmp/result.png` to confirm the result.
+2. **Focus app**: `focus app --app <name>` to bring the target application to the foreground.
+3. **Discover UI**: `ax list --app <name>` for overview, `ax tree --app <name> --depth 3` for structure.
+4. **Find target**: `ax find --app <name> --label "Submit"` to locate an element, note its path.
+5. **Check actions**: `ax actions --app <name> --path <path>` to see what the element supports.
+6. **Interact via AX**: `ax press --app <name> --path <path>` to click buttons, `ax set-value --app <name> --path <path> --value "text"` to fill text fields.
+7. **Verify**: `ax attrs --app <name> --path <path>` to check the element state after interaction, or use `screenshot` if visual confirmation is needed.
+
+### Fallback: Screen capture + mouse/keyboard
+
+Use this approach when AX interaction is not possible:
+
+1. **Capture screen**: `screenshot --app <name> --output /tmp/screen.png` to see the current state.
+2. **Identify coordinates**: Read the screenshot to find the target element's position.
+3. **Interact**: `mouse click --x <x> --y <y>` to click, `key type "text"` to enter text, `key press return` to confirm.
+4. **Verify**: `screenshot --app <name> --output /tmp/result.png` to confirm the result.
 
 ## Edge cases
 
-- If `ax list` returns no elements, the app may not expose AX data or accessibility permission is missing.
+- If `ax list` returns no elements, the app may not expose AX data or accessibility permission is missing. Fall back to screenshot + mouse/keyboard.
 - `--app` matching is case-insensitive and partial: `--app safari` matches "Safari".
 - Mouse coordinates are in screen space (origin top-left of primary display).
 - `key type` uses unicode input and works for any character including non-ASCII. Use `key press` with `--modifiers` for keyboard shortcuts.

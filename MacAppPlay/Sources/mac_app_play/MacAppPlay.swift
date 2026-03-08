@@ -10,6 +10,7 @@ struct MacAppPlay: AsyncParsableCommand {
             MouseCommand.self,
             KeyboardCommand.self,
             AccessibilityCommand.self,
+            FocusCommand.self,
             PermissionCommand.self,
         ]
     )

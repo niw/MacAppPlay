@@ -1,11 +1,28 @@
 import ArgumentParser
+import ApplicationServices
 
 struct AccessibilityCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "ax",
-        abstract: "Inspect accessibility elements.",
-        subcommands: [List.self, Tree.self, Children.self, Find.self, Attrs.self]
+        abstract: "Inspect and interact with accessibility elements.",
+        subcommands: [List.self, Tree.self, Children.self, Find.self, Attrs.self, Actions.self, Press.self, SetValue.self]
     )
+
+    /// Resolve an AXUIElement from an app name and path.
+    static func resolveElement(app: String, path: [Int]) throws -> AXUIElement {
+        let root = try AccessibilityElement.appElement(for: app)
+        let children = AccessibilityElement.getChildren(root)
+
+        guard let firstIndex = path.first, firstIndex >= 0, firstIndex < children.count else {
+            print("Invalid path.")
+            throw ExitCode.failure
+        }
+
+        return try AccessibilityElement.navigate(
+            from: children[firstIndex],
+            path: Array(path.dropFirst())
+        )
+    }
 
     struct List: ParsableCommand {
         static let configuration = CommandConfiguration(
@@ -66,18 +83,7 @@ struct AccessibilityCommand: ParsableCommand {
         var path: [Int]
 
         func run() throws {
-            let root = try AccessibilityElement.appElement(for: app)
-            let children = AccessibilityElement.getChildren(root)
-
-            guard let firstIndex = path.first, firstIndex < children.count else {
-                print("Invalid path.")
-                throw ExitCode.failure
-            }
-
-            let target = try AccessibilityElement.navigate(
-                from: children[firstIndex],
-                path: Array(path.dropFirst())
-            )
+            let target = try AccessibilityCommand.resolveElement(app: app, path: path)
 
             let targetChildren = AccessibilityElement.getChildren(target)
             if targetChildren.isEmpty {
@@ -143,18 +149,7 @@ struct AccessibilityCommand: ParsableCommand {
         var path: [Int]
 
         func run() throws {
-            let root = try AccessibilityElement.appElement(for: app)
-            let children = AccessibilityElement.getChildren(root)
-
-            guard let firstIndex = path.first, firstIndex < children.count else {
-                print("Invalid path.")
-                throw ExitCode.failure
-            }
-
-            let target = try AccessibilityElement.navigate(
-                from: children[firstIndex],
-                path: Array(path.dropFirst())
-            )
+            let target = try AccessibilityCommand.resolveElement(app: app, path: path)
 
             let attrs = AccessibilityElement.getAllAttributes(target)
             if attrs.isEmpty {
@@ -165,6 +160,109 @@ struct AccessibilityCommand: ParsableCommand {
             for (name, value) in attrs {
                 print("\(name): \(value)")
             }
+        }
+    }
+
+    struct Actions: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "List available actions for element at path."
+        )
+
+        @Option(help: "Application name.")
+        var app: String
+
+        @Option(
+            help: "Comma-separated index path (e.g., 0,1,2).",
+            transform: { $0.split(separator: ",").compactMap { Int($0) } }
+        )
+        var path: [Int]
+
+        func run() throws {
+            let target = try AccessibilityCommand.resolveElement(app: app, path: path)
+
+            var actionNames: CFArray?
+            guard AXUIElementCopyActionNames(target, &actionNames) == .success,
+                  let actions = actionNames as? [String] else {
+                print("No actions available.")
+                return
+            }
+
+            if actions.isEmpty {
+                print("No actions available.")
+                return
+            }
+
+            for action in actions {
+                var description: CFString?
+                AXUIElementCopyActionDescription(target, action as CFString, &description)
+                let desc = (description as? String).map { " — \($0)" } ?? ""
+                print("\(action)\(desc)")
+            }
+        }
+    }
+
+    struct Press: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Perform an action on element at path (default: AXPress)."
+        )
+
+        @Option(help: "Application name.")
+        var app: String
+
+        @Option(
+            help: "Comma-separated index path (e.g., 0,1,2).",
+            transform: { $0.split(separator: ",").compactMap { Int($0) } }
+        )
+        var path: [Int]
+
+        @Option(help: "Action name (default: AXPress).")
+        var action: String = "AXPress"
+
+        func run() throws {
+            let target = try AccessibilityCommand.resolveElement(app: app, path: path)
+
+            let result = AXUIElementPerformAction(target, action as CFString)
+            guard result == .success else {
+                print("Failed to perform \(action) (AX error: \(result.rawValue)).")
+                throw ExitCode.failure
+            }
+
+            let info = AccessibilityElement.getInfo(target)
+            let label = info.label.map { " \"\($0)\"" } ?? ""
+            print("Performed \(action) on \(info.role)\(label).")
+        }
+    }
+
+    struct SetValue: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "set-value",
+            abstract: "Set the value of an element at path (e.g., text field)."
+        )
+
+        @Option(help: "Application name.")
+        var app: String
+
+        @Option(
+            help: "Comma-separated index path (e.g., 0,1,2).",
+            transform: { $0.split(separator: ",").compactMap { Int($0) } }
+        )
+        var path: [Int]
+
+        @Option(help: "Value to set.")
+        var value: String
+
+        func run() throws {
+            let target = try AccessibilityCommand.resolveElement(app: app, path: path)
+
+            let result = AXUIElementSetAttributeValue(target, kAXValueAttribute as CFString, value as CFTypeRef)
+            guard result == .success else {
+                print("Failed to set value (AX error: \(result.rawValue)).")
+                throw ExitCode.failure
+            }
+
+            let info = AccessibilityElement.getInfo(target)
+            let label = info.label.map { " \"\($0)\"" } ?? ""
+            print("Set value on \(info.role)\(label) to \"\(value)\".")
         }
     }
 }
