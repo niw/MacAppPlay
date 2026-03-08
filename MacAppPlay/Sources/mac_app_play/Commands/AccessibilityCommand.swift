@@ -95,7 +95,9 @@ struct AccessibilityCommand: ParsableCommand {
                 let info = AccessibilityElement.getInfo(child)
                 let labelStr = info.label.map { " \"\($0)\"" } ?? ""
                 let posStr = info.positionString.isEmpty ? "" : " \(info.positionString)"
-                print("[\(i)] \(info.role)\(labelStr)\(posStr)")
+                let actions = AccessibilityElement.getActionNames(child)
+                let actionsStr = actions.isEmpty ? "" : " {\(actions.joined(separator: ", "))}"
+                print("[\(i)] \(info.role)\(labelStr)\(posStr)\(actionsStr)")
             }
         }
     }
@@ -115,7 +117,7 @@ struct AccessibilityCommand: ParsableCommand {
             let root = try AccessibilityElement.appElement(for: app)
             let children = AccessibilityElement.getChildren(root)
 
-            var results: [(path: [Int], info: ElementInfo)] = []
+            var results: [(path: [Int], info: ElementInfo, actions: [String])] = []
             for (i, child) in children.enumerated() {
                 AccessibilityElement.findByLabel(child, label: label, path: [i], results: &results)
             }
@@ -129,7 +131,8 @@ struct AccessibilityCommand: ParsableCommand {
                 let pathStr = result.path.map(String.init).joined(separator: ",")
                 let labelStr = result.info.label.map { " \"\($0)\"" } ?? ""
                 let posStr = result.info.positionString.isEmpty ? "" : " \(result.info.positionString)"
-                print("[\(pathStr)] \(result.info.role)\(labelStr)\(posStr)")
+                let actionsStr = result.actions.isEmpty ? "" : " {\(result.actions.joined(separator: ", "))}"
+                print("[\(pathStr)] \(result.info.role)\(labelStr)\(posStr)\(actionsStr)")
             }
         }
     }
@@ -223,7 +226,17 @@ struct AccessibilityCommand: ParsableCommand {
 
             let result = AXUIElementPerformAction(target, action as CFString)
             guard result == .success else {
-                print("Failed to perform \(action) (AX error: \(result.rawValue)).")
+                var message = "Failed to perform \(action) (AX error: \(result.rawValue))."
+                if result == .actionUnsupported || result == .failure {
+                    var actionNames: CFArray?
+                    if AXUIElementCopyActionNames(target, &actionNames) == .success,
+                       let actions = actionNames as? [String], !actions.isEmpty {
+                        message += " Available actions: \(actions.joined(separator: ", "))."
+                    } else {
+                        message += " This element has no supported actions."
+                    }
+                }
+                print(message)
                 throw ExitCode.failure
             }
 

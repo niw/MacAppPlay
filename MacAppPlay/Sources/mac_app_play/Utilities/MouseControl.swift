@@ -10,6 +10,9 @@ enum MouseControl {
         if duration > 0 {
             animateMove(to: point, durationMs: duration)
         } else {
+            CGWarpMouseCursorPosition(point)
+            // Re-associate to restore delta tracking after warp.
+            CGAssociateMouseAndMouseCursorPosition(1)
             let event = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .mouseMoved,
@@ -21,6 +24,10 @@ enum MouseControl {
     }
 
     static func click(at point: CGPoint, button: MouseButton = .left, doubleClick: Bool = false) {
+        // Warp cursor to the click position so apps that check actual cursor position work.
+        CGWarpMouseCursorPosition(point)
+        CGAssociateMouseAndMouseCursorPosition(1)
+
         let (downType, upType): (CGEventType, CGEventType) = switch button {
         case .left: (.leftMouseDown, .leftMouseUp)
         case .right: (.rightMouseDown, .rightMouseUp)
@@ -61,6 +68,9 @@ enum MouseControl {
         }
         let cgButton: CGMouseButton = button == .left ? .left : .right
 
+        CGWarpMouseCursorPosition(start)
+        CGAssociateMouseAndMouseCursorPosition(1)
+
         let down = CGEvent(
             mouseEventSource: nil,
             mouseType: downType,
@@ -74,10 +84,12 @@ enum MouseControl {
             let t = CGFloat(i) / CGFloat(steps)
             let x = start.x + (end.x - start.x) * t
             let y = start.y + (end.y - start.y) * t
+            let pos = CGPoint(x: x, y: y)
+            CGWarpMouseCursorPosition(pos)
             let drag = CGEvent(
                 mouseEventSource: nil,
                 mouseType: dragType,
-                mouseCursorPosition: CGPoint(x: x, y: y),
+                mouseCursorPosition: pos,
                 mouseButton: cgButton
             )
             drag?.post(tap: .cghidEventTap)
@@ -102,14 +114,17 @@ enum MouseControl {
             let t = CGFloat(i) / CGFloat(steps)
             let x = current.x + (target.x - current.x) * t
             let y = current.y + (target.y - current.y) * t
+            let pos = CGPoint(x: x, y: y)
+            CGWarpMouseCursorPosition(pos)
             let event = CGEvent(
                 mouseEventSource: nil,
                 mouseType: .mouseMoved,
-                mouseCursorPosition: CGPoint(x: x, y: y),
+                mouseCursorPosition: pos,
                 mouseButton: .left
             )
             event?.post(tap: .cghidEventTap)
             usleep(16_000)
         }
+        CGAssociateMouseAndMouseCursorPosition(1)
     }
 }

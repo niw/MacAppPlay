@@ -106,7 +106,9 @@ enum AccessibilityElement {
         let indent = String(repeating: "  ", count: depth)
         let labelStr = info.label.map { " \"\($0)\"" } ?? ""
         let posStr = info.positionString.isEmpty ? "" : " \(info.positionString)"
-        print("\(indent)[\(index)] \(info.role)\(labelStr)\(posStr)")
+        let actions = getActionNames(element)
+        let actionsStr = actions.isEmpty ? "" : " {\(actions.joined(separator: ", "))}"
+        print("\(indent)[\(index)] \(info.role)\(labelStr)\(posStr)\(actionsStr)")
 
         let children = getChildren(element)
         for (i, child) in children.enumerated() {
@@ -118,7 +120,7 @@ enum AccessibilityElement {
         _ element: AXUIElement,
         label: String,
         path: [Int] = [],
-        results: inout [(path: [Int], info: ElementInfo)]
+        results: inout [(path: [Int], info: ElementInfo, actions: [String])]
     ) {
         let info = getInfo(element)
         let labelLower = label.lowercased()
@@ -127,13 +129,22 @@ enum AccessibilityElement {
             .contains { $0.contains(labelLower) }
 
         if matches {
-            results.append((path: path, info: info))
+            results.append((path: path, info: info, actions: getActionNames(element)))
         }
 
         let children = getChildren(element)
         for (i, child) in children.enumerated() {
             findByLabel(child, label: label, path: path + [i], results: &results)
         }
+    }
+
+    static func getActionNames(_ element: AXUIElement) -> [String] {
+        var actionNames: CFArray?
+        guard AXUIElementCopyActionNames(element, &actionNames) == .success,
+              let actions = actionNames as? [String] else {
+            return []
+        }
+        return actions
     }
 
     // MARK: - Private helpers
