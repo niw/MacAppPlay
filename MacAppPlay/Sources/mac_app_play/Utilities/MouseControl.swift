@@ -45,6 +45,8 @@ enum MouseControl {
             down?.setIntegerValueField(.mouseEventClickState, value: Int64(i))
             down?.post(tap: .cghidEventTap)
 
+            usleep(50_000)
+
             let up = CGEvent(
                 mouseEventSource: nil,
                 mouseType: upType,
