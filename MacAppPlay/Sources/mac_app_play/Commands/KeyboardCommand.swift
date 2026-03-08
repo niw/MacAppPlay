@@ -22,13 +22,16 @@ struct KeyboardCommand: ParsableCommand {
         )
         var modifiers: [String] = []
 
+        @Option(help: "Delay between keystrokes in milliseconds.")
+        var delay: Int = 10
+
         func run() throws {
             guard let code = KeyCodeMap.keyCode(for: key) else {
                 print("Unknown key: \(key)")
                 throw ExitCode.failure
             }
             let flags = KeyboardModifier.flags(from: modifiers)
-            KeyboardControl.press(keyCode: code, modifiers: flags)
+            KeyboardControl.press(keyCode: code, modifiers: flags, delayMs: delay)
             print("Pressed \(key)\(modifiers.isEmpty ? "" : " with \(modifiers.joined(separator: "+"))")")
         }
     }
@@ -95,7 +98,7 @@ struct KeyboardCommand: ParsableCommand {
         var string: String
 
         @Option(help: "Delay between keystrokes in milliseconds.")
-        var delay: Int = 0
+        var delay: Int = 10
 
         func run() throws {
             KeyboardControl.typeString(string, delayMs: delay)

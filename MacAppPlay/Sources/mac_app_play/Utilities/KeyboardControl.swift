@@ -25,13 +25,19 @@ enum KeyboardModifier: String, CaseIterable {
 }
 
 enum KeyboardControl {
-    static func press(keyCode: UInt16, modifiers: CGEventFlags = []) {
+    static func press(keyCode: UInt16, modifiers: CGEventFlags = [], delayMs: Int = 0) {
         keyDown(keyCode: keyCode, modifiers: modifiers)
+
+        if delayMs > 0 {
+            usleep(UInt32(delayMs) * 1000)
+        }
+
         keyUp(keyCode: keyCode, modifiers: modifiers)
     }
 
     static func keyDown(keyCode: UInt16, modifiers: CGEventFlags = []) {
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)
+        let source = CGEventSource(stateID: .hidSystemState)
+        let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
         if !modifiers.isEmpty {
             event?.flags = modifiers
         }
@@ -39,7 +45,8 @@ enum KeyboardControl {
     }
 
     static func keyUp(keyCode: UInt16, modifiers: CGEventFlags = []) {
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
+        let source = CGEventSource(stateID: .hidSystemState)
+        let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
         if !modifiers.isEmpty {
             event?.flags = modifiers
         }
@@ -47,13 +54,15 @@ enum KeyboardControl {
     }
 
     static func typeString(_ string: String, delayMs: Int = 0) {
+        let source = CGEventSource(stateID: .hidSystemState)
         for char in string {
             let utf16 = Array(String(char).utf16)
-            let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)
+            let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
             down?.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
             down?.post(tap: .cghidEventTap)
 
-            let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
+            let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+            up?.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: utf16)
             up?.post(tap: .cghidEventTap)
 
             if delayMs > 0 {
