@@ -2,7 +2,7 @@ Mac App Play
 ============
 
 A CLI tool for the agent to use macOS app,
-made by Claude Code (Opus 4.5) for themselves.
+made by Claude Code for themselves.
 
 Usage
 -----
