@@ -40,11 +40,14 @@ scripts/mac_app_play permission request --screen-recording
 
 ### screenshot — Capture screen to PNG
 
+By default, screenshots are captured at **point resolution (1x)** — pixel coordinates in the image match screen points used by mouse commands and AX positions directly. Use `--high-resolution` for full Retina pixel resolution.
+
 ```bash
 scripts/mac_app_play screenshot --output /tmp/screen.png
 scripts/mac_app_play screenshot --app Safari --output /tmp/safari.png
 scripts/mac_app_play screenshot --window-id 1234 --output /tmp/win.png
 scripts/mac_app_play screenshot --display 1 --output /tmp/display.png
+scripts/mac_app_play screenshot --high-resolution --output /tmp/retina.png
 ```
 
 | Option | Description |
@@ -53,6 +56,19 @@ scripts/mac_app_play screenshot --display 1 --output /tmp/display.png
 | `--window-id <id>` | Capture specific window by CGWindowID |
 | `--display <id>` | Capture specific display |
 | `--output <path>` | Output PNG path (default: `screenshot.png`) |
+| `--high-resolution` | Capture at full pixel resolution (Retina/2x). Default is 1x point resolution |
+
+### display-info — Show display size and scale factor
+
+```bash
+scripts/mac_app_play display-info
+```
+
+Prints each display's point size, scale factor, and pixel size. Example output:
+
+```
+Display 1: 1440x900 points, scale factor 2x (2880x1800 pixels)
+```
 
 ### mouse — Control mouse cursor
 
@@ -210,9 +226,16 @@ Use this approach when AX interaction is not possible:
 3. **Interact**: `mouse click --x <x> --y <y>` to click, `key type "text"` to enter text, `key press return` to confirm.
 4. **Verify**: `screenshot --app <name> --output /tmp/result.png` to confirm the result.
 
+## Coordinate system
+
+All coordinates (mouse, AX positions, default screenshots) use **screen points** — logical coordinates with origin at the top-left of the primary display. On Retina displays, 1 point = 2 pixels.
+
+- **Default screenshots** are captured at 1x (point resolution), so pixel coordinates in the image correspond directly to screen points — use them as-is with mouse commands.
+- **High-resolution screenshots** (`--high-resolution`) are captured at full Retina resolution. Divide pixel coordinates by the scale factor (use `display-info` to check) to get screen points for mouse commands.
+- **AX positions** are in screen points and can be used directly with mouse commands.
+
 ## Edge cases
 
 - If `ax list` returns no elements, the app may not expose AX data or accessibility permission is missing. Fall back to screenshot + mouse/keyboard.
 - `--app` matching is case-insensitive and partial: `--app safari` matches "Safari".
-- Mouse coordinates are in screen space (origin top-left of primary display).
 - `key type` uses unicode input and works for any character including non-ASCII. Use `key press` with `--modifiers` for keyboard shortcuts.

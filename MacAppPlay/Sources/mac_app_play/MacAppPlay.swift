@@ -7,6 +7,7 @@ struct MacAppPlay: AsyncParsableCommand {
         abstract: "macOS CLI utility for screen capture, mouse/keyboard control, and accessibility inspection.",
         subcommands: [
             ScreenshotCommand.self,
+            DisplayInfoCommand.self,
             MouseCommand.self,
             KeyboardCommand.self,
             AccessibilityCommand.self,
